@@ -889,3 +889,50 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
   font-size: 13px;
   opacity: 0.7;
 }
+/* ================= ORDER PRIORITY ================= */
+
+.priority-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.priority-label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.65;
+}
+
+.priority-select {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.priority-select:focus {
+  border-color: #999;
+}
+
+.urgent-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #fee2e2;
+  color: #b91c1c;
+  letter-spacing: 0.3px;
+}
+
+/* Slight visual emphasis for urgent orders */
+.ticket.priority-urgent {
+  border-left: 4px solid #dc2626;
+}
+
+.ticket.priority-high {
+  border-left: 4px solid #f59e0b;
+}

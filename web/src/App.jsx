@@ -24,6 +24,15 @@ export default function App() {
   const [historyFor, setHistoryFor] = useState(null);
   const [connectionLost, setConnectionLost] = useState(false);
   const toastId = useRef(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const pushToast = useCallback((kind, title, message) => {
     const id = (toastId.current += 1);
@@ -123,6 +132,16 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="brand">Swaad <span>· Kitchen Operations</span></div>
+        <div className="restaurant-status">
+          <span className="status-dot"></span>
+          Open
+        </div>
+        <div className="current-time">
+          {currentTime.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </div>
         <div className="topbar-spacer" />
         <div className="counts">
           {COLUMNS.map((column, index) => (

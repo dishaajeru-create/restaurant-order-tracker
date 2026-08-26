@@ -737,3 +737,27 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
     font-weight: 700;
   }
 }
+.current-time {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-right: 20px;
+  white-space: nowrap;
+}
+.restaurant-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 18px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+}

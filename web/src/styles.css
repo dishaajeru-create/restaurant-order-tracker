@@ -936,3 +936,160 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
 .ticket.priority-high {
   border-left: 4px solid #f59e0b;
 }
+/* =========================================
+   RESTAURANT STATUS
+========================================= */
+
+.restaurant-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.status-dot.closed {
+  background: #ef4444;
+}
+
+.restaurant-status-select {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  padding: 3px 5px;
+}
+
+.restaurant-status-select:hover {
+  opacity: 0.8;
+}
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 14, 0.65);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 70;
+}
+
+.menu-panel {
+  width: min(700px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.2);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+}
+
+.menu-header h2 {
+  margin: 0;
+}
+
+.menu-header p {
+  margin: 0.35rem 0 0;
+  color: var(--paper-dim);
+  font-size: 0.85rem;
+}
+
+.menu-close {
+  border: none;
+  background: #f3f1ec;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.menu-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.menu-category {
+  border: 1px solid var(--ink-line);
+  background: white;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.menu-category.active {
+  background: var(--paper);
+  color: white;
+}
+
+.menu-items {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--ink-line);
+  border-radius: 12px;
+}
+
+.menu-item-info h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.menu-item-category {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--paper-dim);
+  font-size: 0.75rem;
+}
+
+.menu-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.menu-available {
+  color: var(--completed);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.menu-unavailable {
+  color: var(--alert);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.menu-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ink-line);
+  color: var(--paper-dim);
+  font-size: 0.8rem;
+}

@@ -4,11 +4,24 @@ import Login from './components/Login.jsx';
 import Ticket from './components/Ticket.jsx';
 import NewOrderForm from './components/NewOrderForm.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
+import MenuPanel from './components/MenuPanel.jsx';
 
 const COLUMNS = [
-  { status: 'PREPARING', label: 'Preparing', className: 'col-preparing' },
-  { status: 'READY', label: 'Ready', className: 'col-ready' },
-  { status: 'COMPLETED', label: 'Completed', className: 'col-completed' },
+  {
+    status: 'PREPARING',
+    label: 'Preparing',
+    className: 'col-preparing',
+  },
+  {
+    status: 'READY',
+    label: 'Ready',
+    className: 'col-ready',
+  },
+  {
+    status: 'COMPLETED',
+    label: 'Completed',
+    className: 'col-completed',
+  },
 ];
 
 const POLL_MS = 3000;
@@ -16,26 +29,44 @@ const POLL_MS = 3000;
 export default function App() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
+
   const [orders, setOrders] = useState([]);
   const [conflicts, setConflicts] = useState({});
   const [pending, setPending] = useState({});
+
   const [toasts, setToasts] = useState([]);
+
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [historyFor, setHistoryFor] = useState(null);
+
   const [connectionLost, setConnectionLost] = useState(false);
 
-  // Profile dropdown
+  /* ---------------- PROFILE ---------------- */
+
   const [showProfile, setShowProfile] = useState(false);
 
-  // Live clock
+  /* ---------------- MENU ---------------- */
+
+  const [showMenu, setShowMenu] = useState(false);
+
+  /* ---------------- LIVE CLOCK ---------------- */
+
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Search orders
+  /* ---------------- SEARCH ---------------- */
+
   const [searchTerm, setSearchTerm] = useState('');
+
+  /* ---------------- RESTAURANT STATUS ---------------- */
+
+  const [restaurantStatus, setRestaurantStatus] = useState('OPEN');
 
   const toastId = useRef(0);
 
-  /* ---- live clock ---- */
+  /* =====================================================
+     LIVE CLOCK
+  ===================================================== */
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -44,7 +75,10 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  /* ---- toast notifications ---- */
+  /* =====================================================
+     TOAST NOTIFICATIONS
+  ===================================================== */
+
   const pushToast = useCallback((kind, title, message) => {
     const id = (toastId.current += 1);
 
@@ -60,12 +94,15 @@ export default function App() {
 
     setTimeout(() => {
       setToasts((current) =>
-        current.filter((t) => t.id !== id)
+        current.filter((toast) => toast.id !== id)
       );
     }, 6000);
   }, []);
 
-  /* ---- session ---- */
+  /* =====================================================
+     SESSION
+  ===================================================== */
+
   useEffect(() => {
     if (!getToken()) {
       setChecking(false);
@@ -73,12 +110,21 @@ export default function App() {
     }
 
     api.me()
-      .then((result) => setUser(result.user))
-      .catch(() => clearToken())
-      .finally(() => setChecking(false));
+      .then((result) => {
+        setUser(result.user);
+      })
+      .catch(() => {
+        clearToken();
+      })
+      .finally(() => {
+        setChecking(false);
+      });
   }, []);
 
-  /* ---- polling ---- */
+  /* =====================================================
+     LOAD ORDERS
+  ===================================================== */
+
   const refresh = useCallback(async () => {
     try {
       const result = await api.listOrders();
@@ -96,6 +142,10 @@ export default function App() {
     }
   }, []);
 
+  /* =====================================================
+     POLLING
+  ===================================================== */
+
   useEffect(() => {
     if (!user) return undefined;
 
@@ -106,7 +156,10 @@ export default function App() {
     return () => clearInterval(id);
   }, [user, refresh]);
 
-  /* ---- advance order ---- */
+  /* =====================================================
+     ADVANCE ORDER
+  ===================================================== */
+
   async function advance(order, toStatus, expectedVersion) {
     setPending((current) => ({
       ...current,
@@ -115,7 +168,9 @@ export default function App() {
 
     setConflicts((current) => {
       const next = { ...current };
+
       delete next[order.id];
+
       return next;
     });
 
@@ -128,7 +183,9 @@ export default function App() {
 
       setOrders((current) =>
         current.map((o) =>
-          o.id === order.id ? result.order : o
+          o.id === order.id
+            ? result.order
+            : o
         )
       );
 
@@ -177,89 +234,195 @@ export default function App() {
     }
   }
 
-  /* ---- create order ---- */
+  /* =====================================================
+     CREATE ORDER
+
+     Orders CAN still be created when restaurant is CLOSED.
+  ===================================================== */
+
   async function createOrder(payload) {
-    const key = crypto.randomUUID();
+    try {
+      const key = crypto.randomUUID();
 
-    const result = await api.createOrder(
-      payload,
-      key
-    );
+      const result = await api.createOrder(
+        payload,
+        key
+      );
 
-    await refresh();
+      await refresh();
 
-    pushToast(
-      'success',
-      `Order #${result.order.id}`,
-      'Sent to the kitchen.'
-    );
+      pushToast(
+        'success',
+        `Order #${result.order.id}`,
+        restaurantStatus === 'OPEN'
+          ? 'Sent to the kitchen.'
+          : 'Order booked while restaurant is closed.'
+      );
+
+      setShowNewOrder(false);
+    } catch (err) {
+      pushToast(
+        'error',
+        err.code || 'Order Error',
+        err.message || 'Could not create order.'
+      );
+    }
   }
 
-  /* ---- sign out ---- */
+  /* =====================================================
+     RESTAURANT STATUS
+  ===================================================== */
+
+  function changeRestaurantStatus(status) {
+    setRestaurantStatus(status);
+
+    if (status === 'OPEN') {
+      pushToast(
+        'success',
+        'Restaurant status',
+        'Restaurant is now open.'
+      );
+    } else {
+      pushToast(
+        'success',
+        'Restaurant status',
+        'Restaurant is now closed. Orders can still be booked.'
+      );
+    }
+  }
+
+  /* =====================================================
+     SIGN OUT
+  ===================================================== */
+
   function signOut() {
     clearToken();
+
     setUser(null);
     setOrders([]);
+
     setShowProfile(false);
+    setShowMenu(false);
+    setShowNewOrder(false);
+    setHistoryFor(null);
     setSearchTerm('');
   }
 
-  /* ---- loading ---- */
-  if (checking) return null;
+  /* =====================================================
+     LOADING
+  ===================================================== */
 
-  /* ---- login ---- */
+  if (checking) {
+    return null;
+  }
+
+  /* =====================================================
+     LOGIN
+  ===================================================== */
+
   if (!user) {
     return <Login onSignedIn={setUser} />;
   }
 
-  /* ---- counts ---- */
-  const counts = COLUMNS.map(
-    (column) =>
-      orders.filter(
-        (o) => o.status === column.status
-      ).length
+  /* =====================================================
+     ORDER COUNTS
+  ===================================================== */
+
+  const counts = COLUMNS.map((column) =>
+    orders.filter(
+      (order) => order.status === column.status
+    ).length
   );
 
-  // Preparing orders shown on notification bell
   const notificationCount = counts[0];
 
-  /* ---- search ---- */
-  const filteredOrders = orders.filter((order) => {
-    const search = searchTerm.trim().toLowerCase();
+  /* =====================================================
+     SEARCH
+  ===================================================== */
 
-    if (!search) return true;
+  const filteredOrders = orders.filter((order) => {
+    const search = searchTerm
+      .trim()
+      .toLowerCase();
+
+    if (!search) {
+      return true;
+    }
 
     return (
       String(order.id)
         .toLowerCase()
         .includes(search) ||
+
       String(order.customerName || '')
         .toLowerCase()
         .includes(search) ||
+
       String(order.tableNumber || '')
         .toLowerCase()
         .includes(search)
     );
   });
 
+  /* =====================================================
+     UI
+  ===================================================== */
+
   return (
     <>
-      {/* ================= TOP BAR ================= */}
+      {/* =================================================
+          TOP BAR
+      ================================================= */}
 
       <header className="topbar">
 
-        {/* Brand */}
+        {/* BRAND */}
+
         <div className="brand">
-          Swaad <span>· Kitchen Operations</span>
+          Swaad
+          <span>· Kitchen Operations</span>
         </div>
 
-        {/* Restaurant status */}
-        <div className="restaurant-status">
-          <span className="status-dot"></span>
-          Open
+        {/* =================================================
+            RESTAURANT OPEN / CLOSED SELECTOR
+        ================================================= */}
+
+        <div className="restaurant-status-wrapper">
+
+          <span
+            className={`status-dot ${
+              restaurantStatus === 'OPEN'
+                ? 'status-open'
+                : 'status-closed'
+            }`}
+          />
+
+          <select
+            className={`restaurant-status-select ${
+              restaurantStatus === 'OPEN'
+                ? 'open'
+                : 'closed'
+            }`}
+            value={restaurantStatus}
+            onChange={(e) =>
+              changeRestaurantStatus(
+                e.target.value
+              )
+            }
+          >
+            <option value="OPEN">
+              🟢 Open
+            </option>
+
+            <option value="CLOSED">
+              🔴 Closed
+            </option>
+          </select>
+
         </div>
 
-        {/* Live time */}
+        {/* LIVE TIME */}
+
         <div className="current-time">
           {currentTime.toLocaleTimeString([], {
             hour: '2-digit',
@@ -269,9 +432,11 @@ export default function App() {
 
         <div className="topbar-spacer" />
 
-        {/* Search */}
+        {/* SEARCH */}
+
         <div className="order-search">
-          🔍
+
+          <span>🔍</span>
 
           <input
             type="text"
@@ -285,25 +450,39 @@ export default function App() {
           {searchTerm && (
             <button
               className="search-clear"
-              onClick={() => setSearchTerm('')}
+              onClick={() =>
+                setSearchTerm('')
+              }
               title="Clear search"
             >
               ×
             </button>
           )}
+
         </div>
 
-        {/* Order counts */}
+        {/* ORDER COUNTS */}
+
         <div className="counts">
-          {COLUMNS.map((column, index) => (
-            <div key={column.status}>
-              <strong>{counts[index]}</strong>
-              {column.label}
-            </div>
-          ))}
+
+          {COLUMNS.map(
+            (column, index) => (
+              <div
+                key={column.status}
+              >
+                <strong>
+                  {counts[index]}
+                </strong>
+
+                {column.label}
+              </div>
+            )
+          )}
+
         </div>
 
-        {/* Notification */}
+        {/* NOTIFICATIONS */}
+
         <button
           className="notification-btn"
           title={`${notificationCount} orders preparing`}
@@ -317,15 +496,35 @@ export default function App() {
           )}
         </button>
 
-        {/* New order */}
+        {/* =================================================
+            MENU
+        ================================================= */}
+
         <button
-          className="btn btn-primary"
-          onClick={() => setShowNewOrder(true)}
+          className="btn"
+          onClick={() =>
+            setShowMenu(true)
+          }
         >
-          New order
+          🍽️ Menu
         </button>
 
-        {/* Profile */}
+        {/* =================================================
+            NEW ORDER
+            AVAILABLE EVEN WHEN CLOSED
+        ================================================= */}
+
+        <button
+          className="btn btn-primary"
+          onClick={() =>
+            setShowNewOrder(true)
+          }
+        >
+          + New order
+        </button>
+
+        {/* PROFILE */}
+
         <div className="profile-wrapper">
 
           <button
@@ -342,9 +541,13 @@ export default function App() {
           {showProfile && (
             <div className="profile-menu">
 
-              <strong>{user.name}</strong>
+              <strong>
+                {user.name}
+              </strong>
 
-              <span>{user.role}</span>
+              <span>
+                {user.role}
+              </span>
 
               <div className="profile-divider" />
 
@@ -356,7 +559,9 @@ export default function App() {
                 Profile
               </button>
 
-              <button onClick={signOut}>
+              <button
+                onClick={signOut}
+              >
                 Sign out
               </button>
 
@@ -367,7 +572,33 @@ export default function App() {
 
       </header>
 
-      {/* ================= CONNECTION WARNING ================= */}
+      {/* =================================================
+          CLOSED INFORMATION
+      ================================================= */}
+
+      {restaurantStatus === 'CLOSED' && (
+        <div className="restaurant-closed-banner">
+
+          <span>🔴</span>
+
+          <div>
+            <strong>
+              Restaurant is currently closed
+            </strong>
+
+            <span>
+              New orders can still be booked
+              and will be available for kitchen
+              processing.
+            </span>
+          </div>
+
+        </div>
+      )}
+
+      {/* =================================================
+          CONNECTION WARNING
+      ================================================= */}
 
       {connectionLost && (
         <div
@@ -376,46 +607,61 @@ export default function App() {
             margin: '1rem 1.5rem 0',
           }}
         >
-          Lost contact with the server. Showing the
-          last known board and retrying every{' '}
+          Lost contact with the server.
+          Showing the last known board and
+          retrying every{' '}
           {POLL_MS / 1000}s.
         </div>
       )}
 
-      {/* ================= SEARCH RESULT MESSAGE ================= */}
+      {/* =================================================
+          SEARCH RESULT
+      ================================================= */}
 
       {searchTerm && (
         <div className="search-result-info">
+
           {filteredOrders.length === 0
             ? `No orders found for "${searchTerm}"`
             : `${filteredOrders.length} order${
-                filteredOrders.length === 1 ? '' : 's'
+                filteredOrders.length === 1
+                  ? ''
+                  : 's'
               } found`}
+
         </div>
       )}
 
-      {/* ================= ORDER BOARD ================= */}
+      {/* =================================================
+          ORDER BOARD
+      ================================================= */}
 
       <main className="board">
 
         {COLUMNS.map((column) => {
 
-          const columnOrders = filteredOrders.filter(
-            (order) =>
-              order.status === column.status
-          );
+          const columnOrders =
+            filteredOrders.filter(
+              (order) =>
+                order.status ===
+                column.status
+            );
 
           return (
             <section
               key={column.status}
-              className={column.className}
+              className={
+                column.className
+              }
             >
 
-              {/* Column heading */}
+              {/* COLUMN HEADER */}
 
               <div className="column-head">
 
-                <h2>{column.label}</h2>
+                <h2>
+                  {column.label}
+                </h2>
 
                 <span className="tally">
                   {columnOrders.length}
@@ -423,7 +669,7 @@ export default function App() {
 
               </div>
 
-              {/* Empty column */}
+              {/* EMPTY COLUMN */}
 
               {columnOrders.length === 0 ? (
 
@@ -431,30 +677,38 @@ export default function App() {
 
                   {searchTerm
                     ? 'No matching orders.'
-                    : column.status === 'PREPARING'
+
+                    : column.status ===
+                      'PREPARING'
+
                     ? 'Nothing in the kitchen. Start an order.'
+
                     : `No orders ${column.label.toLowerCase()}.`}
 
                 </p>
 
               ) : (
 
-                /* Orders */
+                columnOrders.map(
+                  (order) => (
 
-                columnOrders.map((order) => (
+                    <Ticket
+                      key={order.id}
+                      order={order}
+                      conflict={
+                        conflicts[order.id]
+                      }
+                      busy={Boolean(
+                        pending[order.id]
+                      )}
+                      onAdvance={advance}
+                      onHistory={
+                        setHistoryFor
+                      }
+                    />
 
-                  <Ticket
-                    key={order.id}
-                    order={order}
-                    conflict={conflicts[order.id]}
-                    busy={Boolean(
-                      pending[order.id]
-                    )}
-                    onAdvance={advance}
-                    onHistory={setHistoryFor}
-                  />
-
-                ))
+                  )
+                )
 
               )}
 
@@ -465,7 +719,21 @@ export default function App() {
 
       </main>
 
-      {/* ================= NEW ORDER ================= */}
+      {/* =================================================
+          MENU PANEL
+      ================================================= */}
+
+      {showMenu && (
+        <MenuPanel
+          onClose={() =>
+            setShowMenu(false)
+          }
+        />
+      )}
+
+      {/* =================================================
+          NEW ORDER MODAL
+      ================================================= */}
 
       {showNewOrder && (
         <NewOrderForm
@@ -476,7 +744,9 @@ export default function App() {
         />
       )}
 
-      {/* ================= HISTORY ================= */}
+      {/* =================================================
+          HISTORY
+      ================================================= */}
 
       {historyFor && (
         <HistoryPanel
@@ -487,7 +757,9 @@ export default function App() {
         />
       )}
 
-      {/* ================= TOASTS ================= */}
+      {/* =================================================
+          TOASTS
+      ================================================= */}
 
       <div
         className="toasts"

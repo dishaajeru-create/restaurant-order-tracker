@@ -17,15 +17,22 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [orders, setOrders] = useState([]);
-  const [conflicts, setConflicts] = useState({}); // orderId -> {code, message}
-  const [pending, setPending] = useState({});     // orderId -> true while in flight
+  const [conflicts, setConflicts] = useState({});
+  const [pending, setPending] = useState({});
   const [toasts, setToasts] = useState([]);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [historyFor, setHistoryFor] = useState(null);
   const [connectionLost, setConnectionLost] = useState(false);
-  const toastId = useRef(0);
+
+  // Profile dropdown
+  const [showProfile, setShowProfile] = useState(false);
+
+  // Live clock
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  const toastId = useRef(0);
+
+  /* ---- live clock ---- */
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -34,47 +41,75 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  /* ---- toast notifications ---- */
   const pushToast = useCallback((kind, title, message) => {
     const id = (toastId.current += 1);
-    setToasts((current) => [...current, { id, kind, title, message }]);
-    setTimeout(() => setToasts((current) => current.filter((t) => t.id !== id)), 6000);
+
+    setToasts((current) => [
+      ...current,
+      {
+        id,
+        kind,
+        title,
+        message,
+      },
+    ]);
+
+    setTimeout(() => {
+      setToasts((current) =>
+        current.filter((t) => t.id !== id)
+      );
+    }, 6000);
   }, []);
 
   /* ---- session ---- */
   useEffect(() => {
-    if (!getToken()) { setChecking(false); return; }
+    if (!getToken()) {
+      setChecking(false);
+      return;
+    }
+
     api.me()
       .then((result) => setUser(result.user))
       .catch(() => clearToken())
       .finally(() => setChecking(false));
   }, []);
 
-  /* ---- polling ----
-     Every screen in the restaurant polls the board, which is exactly why the
-     list endpoint is the one cached in Redis. Three seconds is frequent enough
-     that staff see each other's actions almost immediately, and the cache keeps
-     the database load flat regardless of how many screens are mounted. */
+  /* ---- polling ---- */
   const refresh = useCallback(async () => {
     try {
       const result = await api.listOrders();
+
       setOrders(result.orders);
       setConnectionLost(false);
     } catch (err) {
-      if (err.status === 401) { clearToken(); setUser(null); return; }
+      if (err.status === 401) {
+        clearToken();
+        setUser(null);
+        return;
+      }
+
       setConnectionLost(true);
     }
   }, []);
 
   useEffect(() => {
     if (!user) return undefined;
+
     refresh();
+
     const id = setInterval(refresh, POLL_MS);
+
     return () => clearInterval(id);
   }, [user, refresh]);
 
-  /* ---- the concurrency-critical action ---- */
+  /* ---- advance order ---- */
   async function advance(order, toStatus, expectedVersion) {
-    setPending((current) => ({ ...current, [order.id]: true }));
+    setPending((current) => ({
+      ...current,
+      [order.id]: true,
+    }));
+
     setConflicts((current) => {
       const next = { ...current };
       delete next[order.id];
@@ -82,68 +117,136 @@ export default function App() {
     });
 
     try {
-      const result = await api.advance(order.id, toStatus, expectedVersion);
-      // Apply the server's copy immediately rather than guessing locally, so the
-      // version we hold is always the one the server just wrote.
-      setOrders((current) => current.map((o) => (o.id === order.id ? result.order : o)));
-      pushToast('success', `Order #${order.id}`, `Moved to ${toStatus}.`);
+      const result = await api.advance(
+        order.id,
+        toStatus,
+        expectedVersion
+      );
+
+      setOrders((current) =>
+        current.map((o) =>
+          o.id === order.id ? result.order : o
+        )
+      );
+
+      pushToast(
+        'success',
+        `Order #${order.id}`,
+        `Moved to ${toStatus}.`
+      );
     } catch (err) {
-      const stale = ['VERSION_CONFLICT', 'ORDER_BUSY', 'DUPLICATE_TRANSITION'].includes(err.code);
-      const illegal = ['INVALID_TRANSITION', 'TERMINAL_STATE'].includes(err.code);
+      const stale = [
+        'VERSION_CONFLICT',
+        'ORDER_BUSY',
+        'DUPLICATE_TRANSITION',
+      ].includes(err.code);
+
+      const illegal = [
+        'INVALID_TRANSITION',
+        'TERMINAL_STATE',
+      ].includes(err.code);
 
       if (stale || illegal) {
-        // Pin the explanation to the docket it belongs to, and pull the true
-        // state so the screen stops being stale.
-        setConflicts((current) => ({ ...current, [order.id]: { code: err.code, message: err.message } }));
+        setConflicts((current) => ({
+          ...current,
+          [order.id]: {
+            code: err.code,
+            message: err.message,
+          },
+        }));
+
         await refresh();
       } else {
-        pushToast('error', err.code || 'Error', err.message);
+        pushToast(
+          'error',
+          err.code || 'Error',
+          err.message
+        );
       }
     } finally {
       setPending((current) => {
         const next = { ...current };
+
         delete next[order.id];
+
         return next;
       });
     }
   }
 
+  /* ---- create order ---- */
   async function createOrder(payload) {
-    // A random idempotency key means a double-click, or a retry after a flaky
-    // network, cannot produce two identical orders.
     const key = crypto.randomUUID();
-    const result = await api.createOrder(payload, key);
+
+    const result = await api.createOrder(
+      payload,
+      key
+    );
+
     await refresh();
-    pushToast('success', `Order #${result.order.id}`, 'Sent to the kitchen.');
+
+    pushToast(
+      'success',
+      `Order #${result.order.id}`,
+      'Sent to the kitchen.'
+    );
   }
 
+  /* ---- sign out ---- */
   function signOut() {
     clearToken();
     setUser(null);
     setOrders([]);
+    setShowProfile(false);
   }
 
+  /* ---- loading ---- */
   if (checking) return null;
-  if (!user) return <Login onSignedIn={setUser} />;
 
-  const counts = COLUMNS.map((column) => orders.filter((o) => o.status === column.status).length);
+  /* ---- login ---- */
+  if (!user) {
+    return <Login onSignedIn={setUser} />;
+  }
+
+  /* ---- counts ---- */
+  const counts = COLUMNS.map(
+    (column) =>
+      orders.filter(
+        (o) => o.status === column.status
+      ).length
+  );
+
+  // Preparing orders shown on notification bell
   const notificationCount = counts[0];
 
   return (
     <>
+      {/* ================= TOP BAR ================= */}
+
       <header className="topbar">
-        <div className="brand">Swaad <span>· Kitchen Operations</span></div>
+
+        {/* Brand */}
+        <div className="brand">
+          Swaad <span>· Kitchen Operations</span>
+        </div>
+
+        {/* Restaurant status */}
         <div className="restaurant-status">
           <span className="status-dot"></span>
           Open
         </div>
+
+        {/* Live time */}
         <div className="current-time">
           {currentTime.toLocaleTimeString([], {
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
           })}
         </div>
+
         <div className="topbar-spacer" />
+
+        {/* Order counts */}
         <div className="counts">
           {COLUMNS.map((column, index) => (
             <div key={column.status}>
@@ -152,65 +255,204 @@ export default function App() {
             </div>
           ))}
         </div>
-        <span className="who">{user.name} · {user.role}</span>
-        <button className="notification-btn" title={`${notificationCount} orders preparing`}>
+
+        {/* Notification */}
+        <button
+          className="notification-btn"
+          title={`${notificationCount} orders preparing`}
+        >
           🔔
+
           {notificationCount > 0 && (
-            <span className="notification-badge">{notificationCount}</span>
+            <span className="notification-badge">
+              {notificationCount}
+            </span>
           )}
         </button>
-        <button className="btn btn-primary" onClick={() => setShowNewOrder(true)}>New order</button>
-        <button className="btn" onClick={signOut}>Sign out</button>
+
+        {/* New order */}
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowNewOrder(true)}
+        >
+          New order
+        </button>
+
+        {/* Profile */}
+        <div className="profile-wrapper">
+
+          <button
+            className="profile-btn"
+            onClick={() =>
+              setShowProfile(
+                (current) => !current
+              )
+            }
+          >
+            👤 {user.name} · {user.role} ▾
+          </button>
+
+          {showProfile && (
+            <div className="profile-menu">
+
+              <strong>{user.name}</strong>
+
+              <span>{user.role}</span>
+
+              <div className="profile-divider" />
+
+              <button
+                onClick={() =>
+                  setShowProfile(false)
+                }
+              >
+                Profile
+              </button>
+
+              <button onClick={signOut}>
+                Sign out
+              </button>
+
+            </div>
+          )}
+
+        </div>
+
       </header>
 
+      {/* ================= CONNECTION WARNING ================= */}
+
       {connectionLost && (
-        <div className="form-error" style={{ margin: '1rem 1.5rem 0' }}>
-          Lost contact with the server. Showing the last known board and retrying every {POLL_MS / 1000}s.
+        <div
+          className="form-error"
+          style={{
+            margin: '1rem 1.5rem 0',
+          }}
+        >
+          Lost contact with the server. Showing the
+          last known board and retrying every{' '}
+          {POLL_MS / 1000}s.
         </div>
       )}
 
+      {/* ================= ORDER BOARD ================= */}
+
       <main className="board">
+
         {COLUMNS.map((column) => {
-          const columnOrders = orders.filter((order) => order.status === column.status);
+
+          const columnOrders = orders.filter(
+            (order) =>
+              order.status === column.status
+          );
+
           return (
-            <section key={column.status} className={column.className}>
+            <section
+              key={column.status}
+              className={column.className}
+            >
+
+              {/* Column heading */}
+
               <div className="column-head">
+
                 <h2>{column.label}</h2>
-                <span className="tally">{columnOrders.length}</span>
+
+                <span className="tally">
+                  {columnOrders.length}
+                </span>
+
               </div>
 
+              {/* Empty column */}
+
               {columnOrders.length === 0 ? (
+
                 <p className="empty">
-                  {column.status === 'PREPARING' ? 'Nothing in the kitchen. Start an order.' : `No orders ${column.label.toLowerCase()}.`}
+
+                  {column.status === 'PREPARING'
+                    ? 'Nothing in the kitchen. Start an order.'
+                    : `No orders ${column.label.toLowerCase()}.`}
+
                 </p>
+
               ) : (
+
+                /* Orders */
+
                 columnOrders.map((order) => (
+
                   <Ticket
                     key={order.id}
                     order={order}
                     conflict={conflicts[order.id]}
-                    busy={Boolean(pending[order.id])}
+                    busy={Boolean(
+                      pending[order.id]
+                    )}
                     onAdvance={advance}
                     onHistory={setHistoryFor}
                   />
+
                 ))
+
               )}
+
             </section>
           );
+
         })}
+
       </main>
 
-      {showNewOrder && <NewOrderForm onClose={() => setShowNewOrder(false)} onCreate={createOrder} />}
-      {historyFor && <HistoryPanel order={historyFor} onClose={() => setHistoryFor(null)} />}
+      {/* ================= NEW ORDER ================= */}
 
-      <div className="toasts" role="status" aria-live="polite">
+      {showNewOrder && (
+        <NewOrderForm
+          onClose={() =>
+            setShowNewOrder(false)
+          }
+          onCreate={createOrder}
+        />
+      )}
+
+      {/* ================= HISTORY ================= */}
+
+      {historyFor && (
+        <HistoryPanel
+          order={historyFor}
+          onClose={() =>
+            setHistoryFor(null)
+          }
+        />
+      )}
+
+      {/* ================= TOASTS ================= */}
+
+      <div
+        className="toasts"
+        role="status"
+        aria-live="polite"
+      >
+
         {toasts.map((toast) => (
-          <div key={toast.id} className={`toast ${toast.kind}`}>
-            <strong>{toast.title}</strong>
+
+          <div
+            key={toast.id}
+            className={`toast ${toast.kind}`}
+          >
+
+            <strong>
+              {toast.title}
+            </strong>
+
             {toast.message}
+
           </div>
+
         ))}
+
       </div>
+
     </>
   );
 }

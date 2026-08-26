@@ -786,3 +786,60 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
   color: white;
   font-weight: 700;
 }
+/* Profile */
+.profile-wrapper {
+  position: relative;
+}
+
+.profile-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-menu strong {
+  font-size: 14px;
+}
+
+.profile-menu span {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.profile-menu button {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.profile-menu button:hover {
+  background: #f3f3f3;
+}
+
+.profile-divider {
+  height: 1px;
+  background: #e5e5e5;
+  margin: 5px 0;
+}

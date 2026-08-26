@@ -843,3 +843,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
   background: #e5e5e5;
   margin: 5px 0;
 }
+.ticket-timer {
+  font-weight: 600;
+}
+
+.ticket-timer.late {
+  font-weight: 700;
+}

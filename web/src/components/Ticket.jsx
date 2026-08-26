@@ -28,7 +28,10 @@ export default function Ticket({ order, conflict, busy, onAdvance, onHistory }) 
     <article className={`ticket s-${order.status}${conflict ? ' conflicted' : ''}`}>
       <div className="ticket-head">
         <span className="ticket-no">#{order.id}</span>
-        <span className={`ticket-timer${isLate ? ' late' : ''}`}>{age}</span>
+        <span className={`ticket-timer${isLate ? ' late' : ''}`}>
+          {isLate ? '⚠️ ' : '🕒 '}
+          {age}
+        </span>
       </div>
 
       <div className="ticket-meta">

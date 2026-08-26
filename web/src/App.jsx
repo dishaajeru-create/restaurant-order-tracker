@@ -122,7 +122,7 @@ export default function App() {
   return (
     <>
       <header className="topbar">
-        <div className="brand">Expo <span>· order tracker</span></div>
+        <div className="brand">Swaad <span>· Kitchen Operations</span></div>
         <div className="topbar-spacer" />
         <div className="counts">
           {COLUMNS.map((column, index) => (

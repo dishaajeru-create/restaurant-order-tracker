@@ -850,3 +850,42 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
 .ticket-timer.late {
   font-weight: 700;
 }
+/* ================= ORDER SEARCH ================= */
+
+.order-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  min-width: 190px;
+}
+
+.order-search input {
+  width: 150px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+}
+
+.order-search input::placeholder {
+  opacity: 0.6;
+}
+
+.search-clear {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.search-result-info {
+  margin: 12px 24px 0;
+  font-size: 13px;
+  opacity: 0.7;
+}

@@ -30,6 +30,9 @@ export default function App() {
   // Live clock
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Search orders
+  const [searchTerm, setSearchTerm] = useState('');
+
   const toastId = useRef(0);
 
   /* ---- live clock ---- */
@@ -198,6 +201,7 @@ export default function App() {
     setUser(null);
     setOrders([]);
     setShowProfile(false);
+    setSearchTerm('');
   }
 
   /* ---- loading ---- */
@@ -218,6 +222,25 @@ export default function App() {
 
   // Preparing orders shown on notification bell
   const notificationCount = counts[0];
+
+  /* ---- search ---- */
+  const filteredOrders = orders.filter((order) => {
+    const search = searchTerm.trim().toLowerCase();
+
+    if (!search) return true;
+
+    return (
+      String(order.id)
+        .toLowerCase()
+        .includes(search) ||
+      String(order.customerName || '')
+        .toLowerCase()
+        .includes(search) ||
+      String(order.tableNumber || '')
+        .toLowerCase()
+        .includes(search)
+    );
+  });
 
   return (
     <>
@@ -245,6 +268,30 @@ export default function App() {
         </div>
 
         <div className="topbar-spacer" />
+
+        {/* Search */}
+        <div className="order-search">
+          🔍
+
+          <input
+            type="text"
+            placeholder="Search orders..."
+            value={searchTerm}
+            onChange={(e) =>
+              setSearchTerm(e.target.value)
+            }
+          />
+
+          {searchTerm && (
+            <button
+              className="search-clear"
+              onClick={() => setSearchTerm('')}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
 
         {/* Order counts */}
         <div className="counts">
@@ -335,13 +382,25 @@ export default function App() {
         </div>
       )}
 
+      {/* ================= SEARCH RESULT MESSAGE ================= */}
+
+      {searchTerm && (
+        <div className="search-result-info">
+          {filteredOrders.length === 0
+            ? `No orders found for "${searchTerm}"`
+            : `${filteredOrders.length} order${
+                filteredOrders.length === 1 ? '' : 's'
+              } found`}
+        </div>
+      )}
+
       {/* ================= ORDER BOARD ================= */}
 
       <main className="board">
 
         {COLUMNS.map((column) => {
 
-          const columnOrders = orders.filter(
+          const columnOrders = filteredOrders.filter(
             (order) =>
               order.status === column.status
           );
@@ -370,7 +429,9 @@ export default function App() {
 
                 <p className="empty">
 
-                  {column.status === 'PREPARING'
+                  {searchTerm
+                    ? 'No matching orders.'
+                    : column.status === 'PREPARING'
                     ? 'Nothing in the kitchen. Start an order.'
                     : `No orders ${column.label.toLowerCase()}.`}
 

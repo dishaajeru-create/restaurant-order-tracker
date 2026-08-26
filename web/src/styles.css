@@ -21,7 +21,7 @@
   --completed: #4a6b55;
   --alert: #c0392b;
 
-  --radius: 6px;
+  --radius: 12px;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   --sans: "Outfit", system-ui, "Segoe UI", sans-serif;
 }
@@ -70,9 +70,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
   color: var(--paper);
   padding: 0.45rem 0.9rem;
   border-radius: var(--radius);
+  font-weight: 500;
+  transition: all 160ms ease;
   transition: background 120ms ease, border-color 120ms ease;
 }
-.btn:hover { background: #edeae4; }
+.btn:hover { background: #edeae4; transform: translateY(-2px); }
 .btn-primary { background: var(--paper); color: var(--ink); border-color: var(--paper); font-weight: 600; }
 .btn-primary:hover { background: #fff; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -117,6 +119,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ready); out
   border: 1px solid var(--ink-line);
   border-left: 4px solid var(--ink-line);
   border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(35, 32, 28, 0.08);
   padding: 0.9rem 1rem;
   margin-bottom: 0.75rem;
   animation: lift 180ms ease-out;

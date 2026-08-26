@@ -127,6 +127,7 @@ export default function App() {
   if (!user) return <Login onSignedIn={setUser} />;
 
   const counts = COLUMNS.map((column) => orders.filter((o) => o.status === column.status).length);
+  const notificationCount = counts[0];
 
   return (
     <>
@@ -152,6 +153,12 @@ export default function App() {
           ))}
         </div>
         <span className="who">{user.name} · {user.role}</span>
+        <button className="notification-btn" title={`${notificationCount} orders preparing`}>
+          🔔
+          {notificationCount > 0 && (
+            <span className="notification-badge">{notificationCount}</span>
+          )}
+        </button>
         <button className="btn btn-primary" onClick={() => setShowNewOrder(true)}>New order</button>
         <button className="btn" onClick={signOut}>Sign out</button>
       </header>
